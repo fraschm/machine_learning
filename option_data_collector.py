@@ -51,9 +51,10 @@ folders = ['2017_June', '2017_July', '2017_August', '2017_September', '2017_Octo
     '2018_April', '2018_May', '2018_June']
 files = ['options_20170801.csv']
 option_data = defaultdict(list)
-start = time.time()
+total_time = 0
 for folder in folders:
     for filename in sorted(glob.glob('ftp.deltaneutral.com/BlackScholes/' + folder + '/options_*.csv')):
+        start = time.time()
         print filename
         with open(filename, 'rb') as csvfile:
             reader = csv.DictReader(csvfile)
@@ -83,12 +84,16 @@ for folder in folders:
                             float(row['Vega'])
                         ))
                     for option in option_data.get(date, []):
-                        if float(row['Last']) == 0:
-                            option.expiration_price = float(row['Last'])
-                        else:
-                            option.expiration_price = float(row['Bid'])
+                        if option.option_name == row['OptionSymbol']:
+                            if float(row['Last']) == 0:
+                                option.expiration_price = float(row['Last'])
+                            else:
+                                option.expiration_price = float(row['Bid'])
         csvfile.close()
-    print "Finished in {} seconds".format(time.time() - start)
+        fin = time.time() - start
+        total_time += fin 
+        print "Finished in {} seconds".format(fin)
+print "Total Time = {} minutes".format(total_time / 60);
 siz = 0
 for _, v in option_data.items():
     siz += len(v)
