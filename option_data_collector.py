@@ -1,6 +1,8 @@
 import csv
-import date
+import datetime
 import pprint
+import time
+from collections import defaultdict
 
 class Option(object):
     def __init__(self, symbol, underlying_price, option_name, option_type,
@@ -11,7 +13,7 @@ class Option(object):
         self.option_name = option_name
         self.option_type = option_type
         self.expiration = expiration
-        self.date = data
+        self.date = date
         self.strike = strike
         self.last = last
         self.bid = bid
@@ -30,21 +32,22 @@ class Option(object):
             self.purchase_price = ask
         else:
             self.purchase_price = last
-        self.expiration_price = purchase_price
+        self.expiration_price = self.purchase_price
 
     @property
     def profit(self):
         if getattr(self, '_profit', None) is None:
             if self.option_type == 'call':
-                self._profit = self.expiration_price - (self.strike
+                self._profit = self.expiration_price - (self.strike\
                     + self.purchase_price)
             else:
-                self._profit = (self.strike + self.purchase_price)
+                self._profit = (self.strike + self.purchase_price)\
                     - self.expiration_price
         return self._profit
 
 files = ['options_20170801.csv']
-option_data = {}
+option_data = defaultdict(list)
+start = time.time()
 for fname in files:
     with open('options_20170801.csv', 'rb') as csvfile:
         reader = csv.DictReader(csvfile)
@@ -52,10 +55,9 @@ for fname in files:
             if row['UnderlyingSymbol'] == 'AAPL' and row['Exchange'] == '*':
                 expiration = datetime.datetime.strptime(row['Expiration'],
                     '%m/%d/%Y')
-                date = datetime.datetime.strptime(row['DataDate'], '%m/%d/%Y')
-                if expiration < datetime.datetime.strptime('06/30/2018'):
-                    option_data[expiration] = option_data.get(expiration,
-                        []).append(Option(
+                date = datetime.datetime.strptime(row[' DataDate'], '%m/%d/%Y')
+                if expiration < datetime.datetime.strptime('06/30/2018', '%m/%d/%Y'):
+                    option_data[expiration].append(Option(
                             row['UnderlyingSymbol'],
                             float(row['UnderlyingPrice']),
                             row['OptionSymbol'],
@@ -79,4 +81,38 @@ for fname in files:
                         option.expiration_price = float(row['Last'])
                     else:
                         option.expiration_price = float(row['Bid'])
-pprint.pprint(option_data)
+    csvfile.close()
+print "Finished in {} seconds".format(time.time() - start)
+siz = 0
+for _, v in option_data.items():
+    siz += len(v)
+print "Total items: {}".format(siz)
+start = time.time()
+print "Creating CSV"
+with open('output/option_output.csv', 'wb+') as csvfile:
+    filewriter = csv.writer(csvfile, delimiter=',')
+    filewriter.writerow(['Symbol', 'UnderlyingPrice', 'OptionSymbol', 'Type', 'Expiration', 'DataData', 'Strike',
+        'Volume', 'OpenInterest', 'IV', 'Delta', 'Gamma', 'Theta', 'Vega', 'PurchasePrice', 'ExpirationPrice', 'Profit'])
+    for _, options in option_data.items():
+        for option in options:
+            filewriter.writerow([
+                option.symbol,
+                option.underlying_price,
+                option.option_name,
+                option.option_type,
+                option.expiration,
+                option.date,
+                option.strike,
+                option.volume,
+                option.open_interest,
+                option.iv,
+                option.delta,
+                option.gamma,
+                option.theta,
+                option.vega,
+                option.purchase_price,
+                option.expiration_price,
+                option.profit
+            ])
+    csvfile.close()
+print "CSV file created in {} seconds".format(time.time() - start)
