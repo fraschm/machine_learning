@@ -2,6 +2,7 @@ import csv
 import datetime
 import pprint
 import time
+import glob
 from collections import defaultdict
 
 class Option(object):
@@ -44,20 +45,25 @@ class Option(object):
                 self._profit = (self.strike + self.purchase_price)\
                     - self.expiration_price
         return self._profit
+stocks = ['BAC', 'CME', 'NAVI', 'F', 'TSLA', 'ATVI', 'FB', 'PSTG', 'DATA']
 
+folders = ['2017_June', '2017_July', '2017_August', '2017_September', '2017_October', '2017_December', '2018_January', '2018_February', '2018_March',
+    '2018_April', '2018_May', '2018_June']
 files = ['options_20170801.csv']
 option_data = defaultdict(list)
 start = time.time()
-for fname in files:
-    with open('options_20170801.csv', 'rb') as csvfile:
-        reader = csv.DictReader(csvfile)
-        for row in reader:
-            if row['UnderlyingSymbol'] == 'AAPL' and row['Exchange'] == '*':
-                expiration = datetime.datetime.strptime(row['Expiration'],
-                    '%m/%d/%Y')
-                date = datetime.datetime.strptime(row[' DataDate'], '%m/%d/%Y')
-                if expiration < datetime.datetime.strptime('06/30/2018', '%m/%d/%Y'):
-                    option_data[expiration].append(Option(
+for folder in folders:
+    for filename in sorted(glob.glob('ftp.deltaneutral.com/BlackScholes/' + folder + '/options_*.csv')):
+        print filename
+        with open(filename, 'rb') as csvfile:
+            reader = csv.DictReader(csvfile)
+            for row in reader:
+                if row['UnderlyingSymbol'] == 'AAPL' and row['Exchange'] == '*':
+                    expiration = datetime.datetime.strptime(row['Expiration'],
+                        '%m/%d/%Y')
+                    date = datetime.datetime.strptime(row[' DataDate'], '%m/%d/%Y')
+                    if expiration < datetime.datetime.strptime('06/30/2018', '%m/%d/%Y'):
+                        option_data[expiration].append(Option(
                             row['UnderlyingSymbol'],
                             float(row['UnderlyingPrice']),
                             row['OptionSymbol'],
@@ -76,13 +82,13 @@ for fname in files:
                             float(row['Theta']),
                             float(row['Vega'])
                         ))
-                for option in option_data.get(date, []):
-                    if float(row['Last']) == 0:
-                        option.expiration_price = float(row['Last'])
-                    else:
-                        option.expiration_price = float(row['Bid'])
-    csvfile.close()
-print "Finished in {} seconds".format(time.time() - start)
+                    for option in option_data.get(date, []):
+                        if float(row['Last']) == 0:
+                            option.expiration_price = float(row['Last'])
+                        else:
+                            option.expiration_price = float(row['Bid'])
+        csvfile.close()
+    print "Finished in {} seconds".format(time.time() - start)
 siz = 0
 for _, v in option_data.items():
     siz += len(v)
