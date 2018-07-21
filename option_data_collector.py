@@ -29,21 +29,28 @@ class Option(object):
         else:
             self.theta = theta
         self.vega = vega
-        if self.last == 0:
+        if self.last == 0 or ask < self.last:
             self.purchase_price = ask
         else:
             self.purchase_price = last
         self.expiration_price = self.purchase_price
+        self.expiration_underlying = self.underlying_price
 
     @property
     def profit(self):
         if getattr(self, '_profit', None) is None:
             if self.option_type == 'call':
-                self._profit = self.expiration_price - (self.strike\
-                    + self.purchase_price)
+                exercise_profit = self.expiration_underlying - (self.strike + self.purchase_price)
+                if self.expiration_price - self.purchase_price > exercise_profit:
+                    self._profit = self.expiration_price - self.purchase_price
+                else:
+                    self._profit = exercise_profit
             else:
-                self._profit = (self.strike + self.purchase_price)\
-                    - self.expiration_price
+                exercise_profit = (self.strike + self.purchase_price) - self.expiration_underlying
+                if self.expiration_price - self.purchase_price > exercise_profit:
+                    self._profit = self.expiration_price - self.purchase_price
+                else:
+                    self._profit = exercise_profit
         return self._profit
 stocks = ['BAC', 'CME', 'NAVI', 'F', 'TSLA', 'ATVI', 'FB', 'PSTG', 'DATA']
 
@@ -84,11 +91,12 @@ for folder in folders:
                             float(row['Vega'])
                         ))
                     for option in option_data.get(date, []):
+                        option.expiration_underlying = float(row['UnderlyingPrice'])
                         if option.option_name == row['OptionSymbol']:
-                            if float(row['Last']) == 0:
-                                option.expiration_price = float(row['Last'])
-                            else:
+                            if float(row['Last']) == 0 or float(row['Bid']) > float(row['Last']):
                                 option.expiration_price = float(row['Bid'])
+                            else:
+                                option.expiration_price = float(row['Last'])
         csvfile.close()
         fin = time.time() - start
         total_time += fin 
